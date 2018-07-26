@@ -36,7 +36,7 @@ func TestOver65kFiles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewArchive: %v", err)
 	}
-	io.Copy(buf, ar)
+	io.Copy(buf, io.NewSectionReader(ar, 0, ar.Size()))
 	s := buf.String()
 	zr, err := zip.NewReader(strings.NewReader(s), int64(len(s)))
 	if err != nil {

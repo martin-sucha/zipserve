@@ -7,25 +7,36 @@ package zipserve
 import (
 	"bytes"
 	"errors"
+	"go4.org/readerutil"
 	"io"
 	"strings"
 )
 
 type Template struct {
-	Prefix  io.ReadSeeker
+	Prefix  readerutil.SizeReaderAt
 	Entries []*FileHeader
 	Comment string
-}
-
-func seekerLength(s io.Seeker) (n int64, err error) {
-	return s.Seek(0, io.SeekEnd)
 }
 
 type archive struct {
 	dir []*header
 }
 
-func NewArchive(t *Template) (io.ReadSeeker, error) {
+type partsBuilder struct {
+	parts  []readerutil.SizeReaderAt
+	offset int64
+}
+
+func (pb *partsBuilder) add(r readerutil.SizeReaderAt) {
+	size := r.Size()
+	if size == 0 {
+		return
+	}
+	pb.parts = append(pb.parts, r)
+	pb.offset += size
+}
+
+func NewArchive(t *Template) (readerutil.SizeReaderAt, error) {
 	if len(t.Comment) > uint16max {
 		return nil, errors.New("Comment too long")
 	}
@@ -36,13 +47,7 @@ func NewArchive(t *Template) (io.ReadSeeker, error) {
 	var pb partsBuilder
 
 	if t.Prefix != nil {
-		prefixLength, err := seekerLength(t.Prefix)
-		if err != nil {
-			return nil, err
-		}
-		if prefixLength > 0 {
-			pb.addReadSeeker(t.Prefix, prefixLength)
-		}
+		pb.add(t.Prefix)
 	}
 
 	for _, entry := range t.Entries {
@@ -52,12 +57,16 @@ func NewArchive(t *Template) (io.ReadSeeker, error) {
 		if err != nil {
 			return nil, err
 		}
-		pb.addBytes(header)
-		pb.addReadSeeker(entry.Content, int64(entry.CompressedSize64))
+		pb.add(header)
+		if entry.Content != nil {
+			pb.add(entry.Content)
+		} else if entry.CompressedSize64 != 0 {
+			return nil, errors.New("Empty entry with nonzero length")
+		}
 		if !strings.HasSuffix(entry.Name, "/") {
 			// data descriptor
 			dataDescriptor := makeDataDescriptor(entry)
-			pb.addBytes(dataDescriptor)
+			pb.add(dataDescriptor)
 		}
 	}
 
@@ -65,9 +74,9 @@ func NewArchive(t *Template) (io.ReadSeeker, error) {
 	if err != nil {
 		return nil, err
 	}
-	pb.addBytes(centralDirectory)
+	pb.add(centralDirectory)
 
-	return pb.createReadSeeker(), nil
+	return readerutil.NewMultiReaderAt(pb.parts...), nil
 }
 
 func prepareEntry(fh *FileHeader) {
@@ -130,7 +139,7 @@ func prepareEntry(fh *FileHeader) {
 	}
 }
 
-func makeLocalFileHeader(fh *FileHeader) ([]byte, error) {
+func makeLocalFileHeader(fh *FileHeader) (readerutil.SizeReaderAt, error) {
 	var buf bytes.Buffer
 
 	err := writeHeader(&buf, fh)
@@ -138,10 +147,10 @@ func makeLocalFileHeader(fh *FileHeader) ([]byte, error) {
 		return nil, err
 	}
 
-	return buf.Bytes(), nil
+	return bytes.NewReader(buf.Bytes()), nil
 }
 
-func makeDataDescriptor(fh *FileHeader) []byte {
+func makeDataDescriptor(fh *FileHeader) readerutil.SizeReaderAt {
 	var compressedSize, uncompressedSize uint32
 
 	if fh.isZip64() {
@@ -175,16 +184,16 @@ func makeDataDescriptor(fh *FileHeader) []byte {
 		b.uint32(uncompressedSize)
 	}
 
-	return buf
+	return bytes.NewReader(buf)
 }
 
-func makeCentralDirectory(start int64, dir []*header, comment string) ([]byte, error) {
+func makeCentralDirectory(start int64, dir []*header, comment string) (readerutil.SizeReaderAt, error) {
 	var buf bytes.Buffer
 	err := writeCentralDirectory(start, dir, &buf, comment)
 	if err != nil {
 		return nil, err
 	}
-	return buf.Bytes(), nil
+	return bytes.NewReader(buf.Bytes()), nil
 }
 
 func writeCentralDirectory(start int64, dir []*header, writer io.Writer, comment string) error {
