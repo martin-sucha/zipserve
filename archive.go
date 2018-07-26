@@ -18,10 +18,6 @@ type Template struct {
 	Comment string
 }
 
-type archive struct {
-	dir []*header
-}
-
 type partsBuilder struct {
 	parts  []readerutil.SizeReaderAt
 	offset int64
@@ -41,9 +37,7 @@ func NewArchive(t *Template) (readerutil.SizeReaderAt, error) {
 		return nil, errors.New("Comment too long")
 	}
 
-	ar := &archive{
-		dir: make([]*header, 0, len(t.Entries)),
-	}
+	dir := make([]*header, 0, len(t.Entries))
 	var pb partsBuilder
 
 	if t.Prefix != nil {
@@ -52,7 +46,7 @@ func NewArchive(t *Template) (readerutil.SizeReaderAt, error) {
 
 	for _, entry := range t.Entries {
 		prepareEntry(entry)
-		ar.dir = append(ar.dir, &header{FileHeader: entry, offset: uint64(pb.offset)})
+		dir = append(dir, &header{FileHeader: entry, offset: uint64(pb.offset)})
 		header, err := makeLocalFileHeader(entry)
 		if err != nil {
 			return nil, err
@@ -70,7 +64,7 @@ func NewArchive(t *Template) (readerutil.SizeReaderAt, error) {
 		}
 	}
 
-	centralDirectory, err := makeCentralDirectory(pb.offset, ar.dir, t.Comment)
+	centralDirectory, err := makeCentralDirectory(pb.offset, dir, t.Comment)
 	if err != nil {
 		return nil, err
 	}
