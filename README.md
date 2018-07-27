@@ -12,8 +12,8 @@ Deprecated fields present in archive/zip (32 bit sizes and DOS time) were remove
 Documentation
 -------------
 
-Package documentation: https://godoc.org/github.com/martin-sucha/zipserve
-ZIP format: https://support.pkware.com/display/PKZIP/APPNOTE
+- Package documentation: https://godoc.org/github.com/martin-sucha/zipserve
+- ZIP format: https://support.pkware.com/display/PKZIP/APPNOTE
 
 License
 -------
