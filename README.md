@@ -18,8 +18,8 @@ Documentation
 License
 -------
 
-Three clause BSD (same as Go) for files in this package (see LICENSE), Apache 2.0 for vendored go4.org packages
-(see LICENSE-go4)
+Three clause BSD (same as Go) for files in this package (see [LICENSE](LICENSE)),
+Apache 2.0 for vendored go4.org packages (see [vendor/go4.org/LICENSE](vendor/go4.org/LICENSE)).
 
 Alternatives
 ------------
