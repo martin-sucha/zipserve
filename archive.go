@@ -106,12 +106,16 @@ func NewArchive(t *Template) (*Archive, error) {
 		}
 		pb.add(bytes.NewReader(header))
 		etagHash.Write(header)
-		if entry.Content != nil {
-			pb.add(&addsize{size: int64(entry.CompressedSize64), source: entry.Content})
-		} else if entry.CompressedSize64 != 0 {
-			return nil, errors.New("empty entry with nonzero length")
-		}
-		if !strings.HasSuffix(entry.Name, "/") {
+		if strings.HasSuffix(entry.Name, "/") {
+			if entry.Content != nil {
+				return nil, errors.New("directory entry non-nil content")
+			}
+		} else {
+			if entry.Content != nil {
+				pb.add(&addsize{size: int64(entry.CompressedSize64), source: entry.Content})
+			} else if entry.CompressedSize64 != 0 {
+				return nil, errors.New("empty entry with nonzero length")
+			}
 			// data descriptor
 			dataDescriptor := makeDataDescriptor(entry)
 			pb.add(bytes.NewReader(dataDescriptor))
