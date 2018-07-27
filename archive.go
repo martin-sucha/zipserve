@@ -10,6 +10,12 @@ import (
 	"go4.org/readerutil"
 	"io"
 	"strings"
+	"net/http"
+	"time"
+	"crypto/md5"
+	"encoding/binary"
+	"fmt"
+	"encoding/hex"
 )
 
 type Template struct {
@@ -17,6 +23,7 @@ type Template struct {
 	PrefixSize int64
 	Entries    []*FileHeader
 	Comment    string
+	CreateTime time.Time
 }
 
 type partsBuilder struct {
@@ -34,7 +41,9 @@ func (pb *partsBuilder) add(r readerutil.SizeReaderAt) {
 }
 
 type Archive struct {
-	data readerutil.SizeReaderAt
+	data       readerutil.SizeReaderAt
+	createTime time.Time
+	etag       string
 }
 
 func NewArchive(t *Template) (*Archive, error) {
@@ -44,10 +53,17 @@ func NewArchive(t *Template) (*Archive, error) {
 
 	dir := make([]*header, 0, len(t.Entries))
 	var pb partsBuilder
+	etagHash := md5.New()
 
 	if t.Prefix != nil {
 		pb.add(&addsize{size: t.PrefixSize, source: t.Prefix})
+
+		var buf [8]byte
+		binary.LittleEndian.PutUint64(buf[:], uint64(t.PrefixSize))
+		etagHash.Write(buf[:])
 	}
+
+	var maxTime time.Time
 
 	for _, entry := range t.Entries {
 		prepareEntry(entry)
@@ -56,7 +72,8 @@ func NewArchive(t *Template) (*Archive, error) {
 		if err != nil {
 			return nil, err
 		}
-		pb.add(header)
+		pb.add(bytes.NewReader(header))
+		etagHash.Write(header)
 		if entry.Content != nil {
 			pb.add(&addsize{size: int64(entry.CompressedSize64), source: entry.Content})
 		} else if entry.CompressedSize64 != 0 {
@@ -66,6 +83,10 @@ func NewArchive(t *Template) (*Archive, error) {
 			// data descriptor
 			dataDescriptor := makeDataDescriptor(entry)
 			pb.add(bytes.NewReader(dataDescriptor))
+			etagHash.Write(dataDescriptor)
+		}
+		if entry.Modified.After(maxTime) {
+			maxTime = entry.Modified
 		}
 	}
 
@@ -73,15 +94,41 @@ func NewArchive(t *Template) (*Archive, error) {
 	if err != nil {
 		return nil, err
 	}
-	pb.add(centralDirectory)
+	pb.add(bytes.NewReader(centralDirectory))
+	etagHash.Write(centralDirectory)
 
-	return &Archive{data: readerutil.NewMultiReaderAt(pb.parts...)}, nil
+	createTime := t.CreateTime
+	if createTime.IsZero() {
+		createTime = maxTime
+	}
+
+	etag := fmt.Sprintf("\"%s\"", hex.EncodeToString(etagHash.Sum(nil)))
+
+	return &Archive{
+		data: readerutil.NewMultiReaderAt(pb.parts...),
+		createTime: createTime,
+		etag: etag}, nil
 }
 
 func (ar *Archive) Size() int64 {return ar.data.Size()}
 func (ar *Archive) ReadAt(p []byte, off int64) (int, error) {return ar.data.ReadAt(p, off)}
 
-func makeLocalFileHeader(fh *FileHeader) (readerutil.SizeReaderAt, error) {
+func (ar *Archive) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	_, haveType := w.Header()["Content-Type"]
+	if !haveType {
+		w.Header().Set("Content-Type", "application/zip")
+	}
+
+	_, haveEtag := w.Header()["Etag"]
+	if !haveEtag {
+		w.Header().Set("Etag", ar.etag)
+	}
+
+	readseeker := io.NewSectionReader(ar.data, 0, ar.data.Size())
+	http.ServeContent(w, r, "", ar.createTime, readseeker)
+}
+
+func makeLocalFileHeader(fh *FileHeader) ([]byte, error) {
 	var buf bytes.Buffer
 
 	err := writeHeader(&buf, fh)
@@ -89,16 +136,16 @@ func makeLocalFileHeader(fh *FileHeader) (readerutil.SizeReaderAt, error) {
 		return nil, err
 	}
 
-	return bytes.NewReader(buf.Bytes()), nil
+	return buf.Bytes(), nil
 }
 
-func makeCentralDirectory(start int64, dir []*header, comment string) (readerutil.SizeReaderAt, error) {
+func makeCentralDirectory(start int64, dir []*header, comment string) ([]byte, error) {
 	var buf bytes.Buffer
 	err := writeCentralDirectory(start, dir, &buf, comment)
 	if err != nil {
 		return nil, err
 	}
-	return bytes.NewReader(buf.Bytes()), nil
+	return buf.Bytes(), nil
 }
 
 type addsize struct {
