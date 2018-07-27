@@ -2,6 +2,17 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+/*
+Package zipserve provides support for serving zip archives over HTTP,
+allowing range queries and resumable downloads. To be able to do that, it requires
+to know CRC32 of the uncompressed data, compressed and uncompressed size of files in advance, which must be
+supplied by the user. The actual file data is fetched on demand from user-provided
+ReaderAt allowing it to be fetched remotely.
+
+See: https://www.pkware.com/appnote, https://golang.org/pkg/archive/zip/
+
+This package does not support disk spanning.
+*/
 package zipserve
 
 import (
@@ -19,10 +30,26 @@ import (
 )
 
 type Template struct {
+	// Prefix is the content at the beginning of the file before ZIP entries.
+	//
+	// It may be used to create self-extracting archives, for example.
 	Prefix     io.ReaderAt
+
+	// PrefixSize is size of Prefix in bytes.
 	PrefixSize int64
+
+	// Entries is a list of files in the archive.
 	Entries    []*FileHeader
+
+	// Comment is archive comment text.
+	//
+	// It may be up to 64K long.
 	Comment    string
+
+	// CreateTime is the last modified time of the archive.
+	//
+	// It is used to populate Last-Modified HTTP header.
+	// The maximum Modified time of the archive entries will be used if CreateTime is zero time.
 	CreateTime time.Time
 }
 
@@ -46,6 +73,11 @@ type Archive struct {
 	etag       string
 }
 
+// NewArchive creates a new Archive from a Template.
+//
+// The archive stores the archive metadata (such as list of files) in memory, while actual file data is fetched on
+// demand. Apart from other fields required when using archive/zip, all entries in the template must have
+// CRC32, UncompressedSize64 and CompressedSize64 set to correct values in advance.
 func NewArchive(t *Template) (*Archive, error) {
 	if len(t.Comment) > uint16max {
 		return nil, errors.New("Comment too long")
@@ -110,9 +142,20 @@ func NewArchive(t *Template) (*Archive, error) {
 		etag: etag}, nil
 }
 
+// Size returns the size of the archive in bytes.
 func (ar *Archive) Size() int64 {return ar.data.Size()}
+
+// ReadAt provides the data of the file.
+//
+// See io.ReaderAt for the interface.
 func (ar *Archive) ReadAt(p []byte, off int64) (int, error) {return ar.data.ReadAt(p, off)}
 
+// ServeHTTP serves the archive over HTTP.
+//
+// ServeHTTP supports range headers, see http.ServeContent for details.
+//
+// Content-Type and Etag headers are added automatically if they are not already present
+// in the ResponseWriter.
 func (ar *Archive) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	_, haveType := w.Header()["Content-Type"]
 	if !haveType {

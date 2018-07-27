@@ -2,13 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-/*
-Package zipserve provides support for serving virtual zip archives over HTTP.
-
-See: https://www.pkware.com/appnote
-
-This package does not support disk spanning.
-*/
 package zipserve
 
 import (
@@ -105,12 +98,22 @@ type FileHeader struct {
 	// location of the Modified time.
 	Modified time.Time
 
+	// CRC32 is a checksum of the uncompressed file data.
+	//
+	// It can be created using crc32.NewIEEE() from hash/crc32 package.
 	CRC32              uint32
+
 	CompressedSize64   uint64
 	UncompressedSize64 uint64
 	Extra              []byte
 	ExternalAttrs      uint32 // Meaning depends on CreatorVersion
 
+	// Content is the (compressed) data of the file.
+	//
+	// Size of content is specified in the CompressedSize64 field and
+	// the content must be compressed using the Method specified.
+	// In case Store is used (the default), the compressed data is the same as
+	// uncompressed data.
 	Content io.ReaderAt
 }
 
