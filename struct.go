@@ -12,10 +12,10 @@ This package does not support disk spanning.
 package zipserve
 
 import (
-	"go4.org/readerutil"
 	"os"
 	"path"
 	"time"
+	"io"
 )
 
 // Compression methods.
@@ -111,7 +111,7 @@ type FileHeader struct {
 	Extra              []byte
 	ExternalAttrs      uint32 // Meaning depends on CreatorVersion
 
-	Content readerutil.SizeReaderAt
+	Content io.ReaderAt
 }
 
 // FileInfo returns an os.FileInfo for the FileHeader.

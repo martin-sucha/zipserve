@@ -8,13 +8,15 @@ import (
 	"bytes"
 	"errors"
 	"go4.org/readerutil"
+	"io"
 	"strings"
 )
 
 type Template struct {
-	Prefix  readerutil.SizeReaderAt
-	Entries []*FileHeader
-	Comment string
+	Prefix     io.ReaderAt
+	PrefixSize int64
+	Entries    []*FileHeader
+	Comment    string
 }
 
 type partsBuilder struct {
@@ -31,7 +33,11 @@ func (pb *partsBuilder) add(r readerutil.SizeReaderAt) {
 	pb.offset += size
 }
 
-func NewArchive(t *Template) (readerutil.SizeReaderAt, error) {
+type Archive struct {
+	data readerutil.SizeReaderAt
+}
+
+func NewArchive(t *Template) (*Archive, error) {
 	if len(t.Comment) > uint16max {
 		return nil, errors.New("Comment too long")
 	}
@@ -40,7 +46,7 @@ func NewArchive(t *Template) (readerutil.SizeReaderAt, error) {
 	var pb partsBuilder
 
 	if t.Prefix != nil {
-		pb.add(t.Prefix)
+		pb.add(&addsize{size: t.PrefixSize, source: t.Prefix})
 	}
 
 	for _, entry := range t.Entries {
@@ -52,7 +58,7 @@ func NewArchive(t *Template) (readerutil.SizeReaderAt, error) {
 		}
 		pb.add(header)
 		if entry.Content != nil {
-			pb.add(entry.Content)
+			pb.add(&addsize{size: int64(entry.CompressedSize64), source: entry.Content})
 		} else if entry.CompressedSize64 != 0 {
 			return nil, errors.New("Empty entry with nonzero length")
 		}
@@ -69,8 +75,11 @@ func NewArchive(t *Template) (readerutil.SizeReaderAt, error) {
 	}
 	pb.add(centralDirectory)
 
-	return readerutil.NewMultiReaderAt(pb.parts...), nil
+	return &Archive{data: readerutil.NewMultiReaderAt(pb.parts...)}, nil
 }
+
+func (ar *Archive) Size() int64 {return ar.data.Size()}
+func (ar *Archive) ReadAt(p []byte, off int64) (int, error) {return ar.data.ReadAt(p, off)}
 
 func makeLocalFileHeader(fh *FileHeader) (readerutil.SizeReaderAt, error) {
 	var buf bytes.Buffer
@@ -92,3 +101,10 @@ func makeCentralDirectory(start int64, dir []*header, comment string) (readeruti
 	return bytes.NewReader(buf.Bytes()), nil
 }
 
+type addsize struct {
+	size int64
+	source io.ReaderAt
+}
+
+func (as *addsize) Size() int64 {return as.size}
+func (as *addsize) ReadAt(p []byte, off int64) (int, error) {return as.source.ReadAt(p, off)}
