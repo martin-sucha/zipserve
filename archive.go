@@ -80,7 +80,7 @@ type Archive struct {
 // CRC32, UncompressedSize64 and CompressedSize64 set to correct values in advance.
 func NewArchive(t *Template) (*Archive, error) {
 	if len(t.Comment) > uint16max {
-		return nil, errors.New("Comment too long")
+		return nil, errors.New("comment too long")
 	}
 
 	dir := make([]*header, 0, len(t.Entries))
@@ -109,7 +109,7 @@ func NewArchive(t *Template) (*Archive, error) {
 		if entry.Content != nil {
 			pb.add(&addsize{size: int64(entry.CompressedSize64), source: entry.Content})
 		} else if entry.CompressedSize64 != 0 {
-			return nil, errors.New("Empty entry with nonzero length")
+			return nil, errors.New("empty entry with nonzero length")
 		}
 		if !strings.HasSuffix(entry.Name, "/") {
 			// data descriptor
