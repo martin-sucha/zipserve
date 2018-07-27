@@ -89,14 +89,6 @@ func (w *countWriter) Write(p []byte) (int, error) {
 	return n, err
 }
 
-type nopCloser struct {
-	io.Writer
-}
-
-func (w nopCloser) Close() error {
-	return nil
-}
-
 type writeBuf []byte
 
 func (b *writeBuf) uint8(v uint8) {

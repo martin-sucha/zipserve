@@ -64,10 +64,7 @@ const (
 	//
 	// See http://mdfs.net/Docs/Comp/Archiving/Zip/ExtraField
 	zip64ExtraID       = 0x0001 // Zip64 extended information
-	ntfsExtraID        = 0x000a // NTFS
-	unixExtraID        = 0x000d // UNIX
 	extTimeExtraID     = 0x5455 // Extended timestamp
-	infoZipUnixExtraID = 0x5855 // Info-ZIP Unix extension
 )
 
 // FileHeader describes a file within a zip file.
@@ -153,32 +150,6 @@ func FileInfoHeader(fi os.FileInfo) (*FileHeader, error) {
 	}
 	fh.SetMode(fi.Mode())
 	return fh, nil
-}
-
-type directoryEnd struct {
-	diskNbr            uint32 // unused
-	dirDiskNbr         uint32 // unused
-	dirRecordsThisDisk uint64 // unused
-	directoryRecords   uint64
-	directorySize      uint64
-	directoryOffset    uint64 // relative to file
-	commentLen         uint16
-	comment            string
-}
-
-// timeZone returns a *time.Location based on the provided offset.
-// If the offset is non-sensible, then this uses an offset of zero.
-func timeZone(offset time.Duration) *time.Location {
-	const (
-		minOffset   = -12 * time.Hour  // E.g., Baker island at -12:00
-		maxOffset   = +14 * time.Hour  // E.g., Line island at +14:00
-		offsetAlias = 15 * time.Minute // E.g., Nepal at +5:45
-	)
-	offset = offset.Round(offsetAlias)
-	if offset < minOffset || maxOffset < offset {
-		offset = 0
-	}
-	return time.FixedZone("", int(offset/time.Second))
 }
 
 // timeToMsDosTime converts a time.Time to an MS-DOS date and time.
