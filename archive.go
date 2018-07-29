@@ -29,6 +29,7 @@ import (
 	"time"
 )
 
+// Template defines contents and options of a ZIP archive.
 type Template struct {
 	// Prefix is the content at the beginning of the file before ZIP entries.
 	//
@@ -67,6 +68,9 @@ func (pb *partsBuilder) add(r readerutil.SizeReaderAt) {
 	pb.offset += size
 }
 
+// Archive represents the ZIP file data to be downloaded by the user.
+//
+// It is a ReaderAt, so allows concurrent access to different byte ranges of the archive.
 type Archive struct {
 	data       readerutil.SizeReaderAt
 	createTime time.Time
@@ -78,6 +82,9 @@ type Archive struct {
 // The archive stores the archive metadata (such as list of files) in memory, while actual file data is fetched on
 // demand. Apart from other fields required when using archive/zip, all entries in the template must have
 // CRC32, UncompressedSize64 and CompressedSize64 set to correct values in advance.
+//
+// The template becomes owned by the archive. The archive will use and modify the template as necessary, so the caller
+// should not use the template after the call to NewArchive. This includes all FileHeader instances in Entries.
 func NewArchive(t *Template) (*Archive, error) {
 	return newArchive(t, bufferView, nil)
 }
