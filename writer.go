@@ -8,8 +8,8 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
-	"unicode/utf8"
 	"strings"
+	"unicode/utf8"
 )
 
 var (
@@ -112,7 +112,8 @@ func (b *writeBuf) uint64(v uint64) {
 	*b = (*b)[8:]
 }
 
-func writeCentralDirectory(start int64, dir []*header, writer io.Writer, comment string) error {
+func writeCentralDirectory(start int64, dir []*header, writer io.Writer, comment string,
+	testHookCloseSizeOffset func(size, offset uint64)) error {
 	// write central directory
 	cw := &countWriter{w: writer}
 	for _, h := range dir {
@@ -177,6 +178,10 @@ func writeCentralDirectory(start int64, dir []*header, writer io.Writer, comment
 
 	records := uint64(len(dir))
 	offset := uint64(start)
+
+	if f := testHookCloseSizeOffset; f != nil {
+		f(size, offset)
+	}
 
 	if records >= uint16max || size >= uint32max || offset >= uint32max {
 		var buf [directory64EndLen + directory64LocLen]byte
@@ -303,7 +308,7 @@ func prepareEntry(fh *FileHeader) {
 	//
 	// This format happens to be identical for both local and central header
 	// if modification time is the only timestamp being encoded.
-	var mbuf [9]byte // 2*SizeOf(uint16) + SizeOf(uint8) + SizeOf(uint32)
+	var mbuf [extTimeExtraLen]byte
 	mt := uint32(fh.Modified.Unix())
 	eb := writeBuf(mbuf[:])
 	eb.uint16(extTimeExtraID)

@@ -17,34 +17,34 @@ package zipserve
 
 import (
 	"bytes"
-	"errors"
-	"go4.org/readerutil"
-	"io"
-	"strings"
-	"net/http"
-	"time"
 	"crypto/md5"
 	"encoding/binary"
-	"fmt"
 	"encoding/hex"
+	"errors"
+	"fmt"
+	"go4.org/readerutil"
+	"io"
+	"net/http"
+	"strings"
+	"time"
 )
 
 type Template struct {
 	// Prefix is the content at the beginning of the file before ZIP entries.
 	//
 	// It may be used to create self-extracting archives, for example.
-	Prefix     io.ReaderAt
+	Prefix io.ReaderAt
 
 	// PrefixSize is size of Prefix in bytes.
 	PrefixSize int64
 
 	// Entries is a list of files in the archive.
-	Entries    []*FileHeader
+	Entries []*FileHeader
 
 	// Comment is archive comment text.
 	//
 	// It may be up to 64K long.
-	Comment    string
+	Comment string
 
 	// CreateTime is the last modified time of the archive.
 	//
@@ -79,6 +79,22 @@ type Archive struct {
 // demand. Apart from other fields required when using archive/zip, all entries in the template must have
 // CRC32, UncompressedSize64 and CompressedSize64 set to correct values in advance.
 func NewArchive(t *Template) (*Archive, error) {
+	return newArchive(t, bufferView, nil)
+}
+
+type bufferViewFunc func(content func(w io.Writer) error) (readerutil.SizeReaderAt, error)
+
+func bufferView(content func(w io.Writer) error) (readerutil.SizeReaderAt, error) {
+	var buf bytes.Buffer
+
+	err := content(&buf)
+	if err != nil {
+		return nil, err
+	}
+	return bytes.NewReader(buf.Bytes()), nil
+}
+
+func newArchive(t *Template, view bufferViewFunc, testHookCloseSizeOffset func(size, offset uint64)) (*Archive, error) {
 	if len(t.Comment) > uint16max {
 		return nil, errors.New("comment too long")
 	}
@@ -100,12 +116,14 @@ func NewArchive(t *Template) (*Archive, error) {
 	for _, entry := range t.Entries {
 		prepareEntry(entry)
 		dir = append(dir, &header{FileHeader: entry, offset: uint64(pb.offset)})
-		header, err := makeLocalFileHeader(entry)
+		header, err := view(func(w io.Writer) error {
+			return writeHeader(w, entry)
+		})
 		if err != nil {
 			return nil, err
 		}
-		pb.add(bytes.NewReader(header))
-		etagHash.Write(header)
+		pb.add(header)
+		io.Copy(etagHash, io.NewSectionReader(header, 0, header.Size()))
 		if strings.HasSuffix(entry.Name, "/") {
 			if entry.Content != nil {
 				return nil, errors.New("directory entry non-nil content")
@@ -126,12 +144,18 @@ func NewArchive(t *Template) (*Archive, error) {
 		}
 	}
 
-	centralDirectory, err := makeCentralDirectory(pb.offset, dir, t.Comment)
+	// capture central directory offset and comment so that content func for central directory
+	// may be called multiple times and we don't store reference to t in the closure
+	centralDirectoryOffset := pb.offset
+	comment := t.Comment
+	centralDirectory, err := view(func(w io.Writer) error {
+		return writeCentralDirectory(centralDirectoryOffset, dir, w, comment, testHookCloseSizeOffset)
+	})
 	if err != nil {
 		return nil, err
 	}
-	pb.add(bytes.NewReader(centralDirectory))
-	etagHash.Write(centralDirectory)
+	pb.add(centralDirectory)
+	io.Copy(etagHash, io.NewSectionReader(centralDirectory, 0, centralDirectory.Size()))
 
 	createTime := t.CreateTime
 	if createTime.IsZero() {
@@ -141,18 +165,18 @@ func NewArchive(t *Template) (*Archive, error) {
 	etag := fmt.Sprintf("\"%s\"", hex.EncodeToString(etagHash.Sum(nil)))
 
 	return &Archive{
-		data: readerutil.NewMultiReaderAt(pb.parts...),
+		data:       readerutil.NewMultiReaderAt(pb.parts...),
 		createTime: createTime,
-		etag: etag}, nil
+		etag:       etag}, nil
 }
 
 // Size returns the size of the archive in bytes.
-func (ar *Archive) Size() int64 {return ar.data.Size()}
+func (ar *Archive) Size() int64 { return ar.data.Size() }
 
 // ReadAt provides the data of the file.
 //
 // See io.ReaderAt for the interface.
-func (ar *Archive) ReadAt(p []byte, off int64) (int, error) {return ar.data.ReadAt(p, off)}
+func (ar *Archive) ReadAt(p []byte, off int64) (int, error) { return ar.data.ReadAt(p, off) }
 
 // ServeHTTP serves the archive over HTTP.
 //
@@ -175,30 +199,10 @@ func (ar *Archive) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	http.ServeContent(w, r, "", ar.createTime, readseeker)
 }
 
-func makeLocalFileHeader(fh *FileHeader) ([]byte, error) {
-	var buf bytes.Buffer
-
-	err := writeHeader(&buf, fh)
-	if err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
-func makeCentralDirectory(start int64, dir []*header, comment string) ([]byte, error) {
-	var buf bytes.Buffer
-	err := writeCentralDirectory(start, dir, &buf, comment)
-	if err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
-}
-
 type addsize struct {
-	size int64
+	size   int64
 	source io.ReaderAt
 }
 
-func (as *addsize) Size() int64 {return as.size}
-func (as *addsize) ReadAt(p []byte, off int64) (int, error) {return as.source.ReadAt(p, off)}
+func (as *addsize) Size() int64                             { return as.size }
+func (as *addsize) ReadAt(p []byte, off int64) (int, error) { return as.source.ReadAt(p, off) }

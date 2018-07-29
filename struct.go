@@ -5,10 +5,10 @@
 package zipserve
 
 import (
+	"io"
 	"os"
 	"path"
 	"time"
-	"io"
 )
 
 // Compression methods.
@@ -31,6 +31,7 @@ const (
 	dataDescriptor64Len      = 24         // descriptor with 8 byte sizes
 	directory64LocLen        = 20         //
 	directory64EndLen        = 56         // + extra
+	extTimeExtraLen          = 9          // 2*SizeOf(uint16) + SizeOf(uint8) + SizeOf(uint32)
 
 	// Constants for the first byte in CreatorVersion.
 	creatorFAT    = 0
@@ -56,8 +57,8 @@ const (
 	// have been invented. Pervasive use effectively makes them "official".
 	//
 	// See http://mdfs.net/Docs/Comp/Archiving/Zip/ExtraField
-	zip64ExtraID       = 0x0001 // Zip64 extended information
-	extTimeExtraID     = 0x5455 // Extended timestamp
+	zip64ExtraID   = 0x0001 // Zip64 extended information
+	extTimeExtraID = 0x5455 // Extended timestamp
 )
 
 // FileHeader describes a file within a zip file.
@@ -101,7 +102,7 @@ type FileHeader struct {
 	// CRC32 is a checksum of the uncompressed file data.
 	//
 	// It can be created using crc32.NewIEEE() from hash/crc32 package.
-	CRC32              uint32
+	CRC32 uint32
 
 	CompressedSize64   uint64
 	UncompressedSize64 uint64
