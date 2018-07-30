@@ -5,9 +5,12 @@
 package zipserve
 
 import (
+	"archive/zip"
 	"bytes"
+	"compress/flate"
 	"encoding/binary"
 	"fmt"
+	"hash/crc32"
 	"io"
 	"io/ioutil"
 	"math/rand"
@@ -15,9 +18,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-	"compress/flate"
-	"archive/zip"
-	"hash/crc32"
 )
 
 // TODO(adg): a more sophisticated test suite
@@ -191,14 +191,14 @@ func TestWriterUTF8(t *testing.T) {
 	for _, test := range utf8Tests {
 		compressed := deflate([]byte{})
 		h := &FileHeader{
-			Name:    test.name,
-			Comment: test.comment,
-			NonUTF8: test.nonUTF8,
-			Method:  Deflate,
-			CompressedSize64: uint64(len(compressed)),
+			Name:               test.name,
+			Comment:            test.comment,
+			NonUTF8:            test.nonUTF8,
+			Method:             Deflate,
+			CompressedSize64:   uint64(len(compressed)),
 			UncompressedSize64: 0,
-			Content: bytes.NewReader(compressed),
-			CRC32: crc([]byte{}),
+			Content:            bytes.NewReader(compressed),
+			CRC32:              crc([]byte{}),
 		}
 		tmpl.Entries = append(tmpl.Entries, h)
 	}
@@ -252,7 +252,7 @@ func TestWriterTime(t *testing.T) {
 func TestWriterMissingData(t *testing.T) {
 	tmpl := &Template{
 		Entries: []*FileHeader{{
-			Name: "file.txt",
+			Name:             "file.txt",
 			CompressedSize64: 5,
 		}},
 	}
@@ -275,7 +275,7 @@ func TestWriterOffset(t *testing.T) {
 	// write a zip file
 	existingData := []byte{1, 2, 3, 1, 2, 3, 1, 2, 3}
 	tmpl := &Template{
-		Prefix: bytes.NewReader(existingData),
+		Prefix:     bytes.NewReader(existingData),
 		PrefixSize: int64(len(existingData)),
 	}
 
@@ -373,9 +373,9 @@ func TestWriterDirAttributes(t *testing.T) {
 
 func testCreate(t *testing.T, wt *WriteTest) *FileHeader {
 	header := &FileHeader{
-		Name:   wt.Name,
-		Method: wt.Method,
-		CRC32: crc(wt.Data),
+		Name:               wt.Name,
+		Method:             wt.Method,
+		CRC32:              crc(wt.Data),
 		UncompressedSize64: uint64(len(wt.Data)),
 	}
 	if wt.Mode != 0 {
@@ -395,7 +395,7 @@ func testCreate(t *testing.T, wt *WriteTest) *FileHeader {
 func deflate(data []byte) []byte {
 	var compressedData bytes.Buffer
 	comp, _ := flate.NewWriter(&compressedData, 5) // level 5 -> err = nil
-	io.Copy(comp, bytes.NewReader(data)) // bytes.Buffer does not return non-nil err
+	io.Copy(comp, bytes.NewReader(data))           // bytes.Buffer does not return non-nil err
 	comp.Close()
 	return compressedData.Bytes()
 }

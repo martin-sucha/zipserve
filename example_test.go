@@ -1,13 +1,13 @@
 package zipserve_test
 
 import (
-	"net/http"
-	"log"
-	"path/filepath"
-	"os"
+	"github.com/martin-sucha/zipserve"
 	"hash/crc32"
 	"io"
-	"github.com/martin-sucha/zipserve"
+	"log"
+	"net/http"
+	"os"
+	"path/filepath"
 )
 
 func templateFromDir(root string) (*zipserve.Template, error) {
@@ -17,7 +17,7 @@ func templateFromDir(root string) (*zipserve.Template, error) {
 		if err != nil {
 			return err
 		}
-		if path == root || !(info.Mode().IsRegular() || info.Mode().IsDir()){
+		if path == root || !(info.Mode().IsRegular() || info.Mode().IsDir()) {
 			return nil
 		}
 		header, err := zipserve.FileInfoHeader(info)
