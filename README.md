@@ -11,7 +11,11 @@ to know CRC32 of the uncompressed data, compressed and uncompressed size of file
 supplied by the user. The actual file data is fetched on demand from user-provided
 ReaderAt allowing it to be fetched remotely.
 
-Deprecated fields present in archive/zip (32 bit sizes and DOS time) were removed in this package.
+Differences to archive/zip:
+
+- Deprecated FileHeader fields present in archive/zip (`CompressedSize`, `UncompressedSize`, `ModifiedTime`,
+  `ModifiedDate`) were removed in this package. This means the extended time information (unix timestamp) is always
+  emitted. If you use `Modified` in archive/zip, the generated file should be identical.
 
 Documentation
 -------------
