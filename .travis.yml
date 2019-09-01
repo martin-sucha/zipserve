@@ -4,3 +4,7 @@ go:
 - "1.11.x"
 - "1.12.x"
 - "master"
+
+env:
+    global:
+        - GO111MODULE=on
