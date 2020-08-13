@@ -5,13 +5,16 @@
 zipserve
 ========
 
-Package zipserve provides support for serving zip archives over HTTP,
-allowing range queries and resumable downloads. To be able to do that, it requires
-to know CRC32 of the uncompressed data, compressed and uncompressed size of files in advance, which must be
-supplied by the user. The actual file data is fetched on demand from user-provided
-ReaderAt allowing it to be fetched remotely.
+Package zipserve implements serving virtual zip archives over HTTP,
+with support for range queries and resumable downloads. Zipserve keeps only the
+archive headers in memory (similar to archive/zip when streaming).
+The actual file data is fetched on demand from user-provided ReaderAt,
+so the file data can be fetched from a remote location. 
+Zipserve needs to know CRC32 of the uncompressed data, compressed and uncompressed size of files in advance,
+which must be supplied by the user. 
 
-Differences to archive/zip:
+Differences to archive/zip
+--------------------------
 
 - Deprecated FileHeader fields present in archive/zip (`CompressedSize`, `UncompressedSize`, `ModifiedTime`,
   `ModifiedDate`) were removed in this package. This means the extended time information (unix timestamp) is always
@@ -22,6 +25,12 @@ Documentation
 
 - Package documentation: https://godoc.org/github.com/martin-sucha/zipserve
 - ZIP format: https://support.pkware.com/display/PKZIP/APPNOTE
+
+Status of the project
+---------------------
+
+The module is stable and supports writing almost everything as archive/zip (see `Differences to archive/zip` above),
+so there aren't many commits. I update the module when a new version of Go is released or on request.
 
 License
 -------
