@@ -12,7 +12,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"go4.org/readerutil"
 	"hash/crc32"
 	"io"
 	"io/ioutil"
@@ -390,7 +389,7 @@ func suffixIsZip64(t *testing.T, zip sizedReaderAt) bool {
 	return true
 }
 
-func rleView(content func(w io.Writer) error) (readerutil.SizeReaderAt, error) {
+func rleView(content func(w io.Writer) error) (sizeReaderAt, error) {
 	buf := new(rleBuffer)
 	err := content(buf)
 	if err != nil {
@@ -459,9 +458,10 @@ func TestZip64LargeDirectory(t *testing.T) {
 
 // sizeWithEnd returns a sized ReaderAt of size dots plus "END\n" appended
 func sizeWithEnd(size int64) sizedReaderAt {
-	return readerutil.NewMultiReaderAt(
-		io.NewSectionReader(&sameBytes{b: '.'}, 0, size),
-		bytes.NewReader([]byte("END\n")))
+	var mcr multiReaderAt
+	mcr.addSizeReaderAt(io.NewSectionReader(&sameBytes{b: '.'}, 0, size))
+	mcr.addSizeReaderAt(bytes.NewReader([]byte("END\n")))
+	return &mcr
 }
 
 func testZip64(t testing.TB, size int64) sizedReaderAt {

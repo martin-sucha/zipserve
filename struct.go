@@ -115,6 +115,9 @@ type FileHeader struct {
 	// the content must be compressed using the Method specified.
 	// In case Store is used (the default), the compressed data is the same as
 	// uncompressed data.
+	//
+	// Content may implement ReaderAt interface from this package, in that case
+	// Content's ReadAtContext method will be called instead of ReadAt.
 	Content io.ReaderAt
 }
 

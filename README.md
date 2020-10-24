@@ -8,10 +8,12 @@ zipserve
 Package zipserve implements serving virtual zip archives over HTTP,
 with support for range queries and resumable downloads. Zipserve keeps only the
 archive headers in memory (similar to archive/zip when streaming).
-The actual file data is fetched on demand from user-provided ReaderAt,
-so the file data can be fetched from a remote location. 
-Zipserve needs to know CRC32 of the uncompressed data, compressed and uncompressed size of files in advance,
-which must be supplied by the user. 
+Zipserve fetches file data on demand from user-provided `io.ReaderAt` or `zipserve.ReaderAt`,
+so the file data can be fetched from a remote location.
+`zipserve.ReaderAt` supports passing request context to the backing store.
+
+The user has to provide CRC32 of the uncompressed data, compressed and uncompressed size of files in advance.
+These can be computed for example during file uploads.
 
 Differences to archive/zip
 --------------------------
@@ -35,8 +37,7 @@ so there aren't many commits. I update the module when a new version of Go is re
 License
 -------
 
-Three clause BSD (same as Go) for files in this package (see [LICENSE](LICENSE)),
-Apache 2.0 for readerutil package from go4.org which is used as a dependency.
+Three clause BSD (same as Go), see [LICENSE](LICENSE).
 
 Alternatives
 ------------
