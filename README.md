@@ -1,6 +1,6 @@
 [![Build Status](https://github.com/martin-sucha/zipserve/actions/workflows/build.yaml/badge.svg?branch=master)](https://github.com/martin-sucha/zipserve/actions/workflows/build.yaml?query=branch%3Amaster)
 [![Go Report Card](https://goreportcard.com/badge/github.com/martin-sucha/zipserve)](https://goreportcard.com/report/github.com/martin-sucha/zipserve)
-[![GoDoc](https://godoc.org/github.com/root-gg/plik?status.svg)](https://godoc.org/github.com/martin-sucha/zipserve)
+[![Go Reference](https://pkg.go.dev/badge/github.com/martin-sucha/zipserve.svg)](https://pkg.go.dev/github.com/martin-sucha/zipserve)
 
 zipserve
 ========
