@@ -60,6 +60,18 @@ var writeTests = []WriteTest{
 		Method: Deflate,
 		Mode:   0755 | os.ModeSymlink,
 	},
+	{
+		Name:   "device",
+		Data:   []byte("device file"),
+		Method: Deflate,
+		Mode:   0755 | os.ModeDevice,
+	},
+	{
+		Name:   "chardevice",
+		Data:   []byte("char device file"),
+		Method: Deflate,
+		Mode:   0755 | os.ModeDevice | os.ModeCharDevice,
+	},
 }
 
 func TestWriter(t *testing.T) {
