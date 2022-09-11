@@ -26,7 +26,7 @@ func TestOver65kFiles(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping in short mode")
 	}
-	buf := new(bytes.Buffer)
+	buf := new(strings.Builder)
 
 	const nFiles = (1 << 16) + 42
 	tmpl := &Template{
