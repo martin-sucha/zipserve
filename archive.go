@@ -178,7 +178,9 @@ func (ar *Archive) Size() int64 { return ar.parts.Size() }
 // This is same as calling ReadAtContext with context.TODO()
 //
 // See io.ReaderAt for the interface.
-func (ar *Archive) ReadAt(p []byte, off int64) (int, error) { return ar.parts.ReadAtContext(context.TODO(), p, off) }
+func (ar *Archive) ReadAt(p []byte, off int64) (int, error) {
+	return ar.parts.ReadAtContext(context.TODO(), p, off)
+}
 
 // ReadAtContext provides the data of the file.
 //

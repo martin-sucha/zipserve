@@ -12,6 +12,7 @@ type testCheckContext struct {
 	r io.ReaderAt
 	f func(ctx context.Context)
 }
+
 func (a testCheckContext) ReadAtContext(ctx context.Context, p []byte, off int64) (n int, err error) {
 	a.f(ctx)
 	return a.r.ReadAt(p, off)
@@ -19,150 +20,150 @@ func (a testCheckContext) ReadAtContext(ctx context.Context, p []byte, off int64
 
 func TestMultiReaderAt_ReadAtContext(t *testing.T) {
 	tests := []struct {
-		name string
-		parts []string
-		offset int64
-		size int64
+		name           string
+		parts          []string
+		offset         int64
+		size           int64
 		expectedResult string
-		expectedError string
+		expectedError  string
 	}{
 		{
-			name: "empty",
-			parts: nil,
-			offset: 0,
-			size: 0,
+			name:           "empty",
+			parts:          nil,
+			offset:         0,
+			size:           0,
 			expectedResult: "",
 		},
 		{
-			name: "empty size out of bounds",
-			parts: nil,
-			offset: 0,
-			size: 1,
+			name:           "empty size out of bounds",
+			parts:          nil,
+			offset:         0,
+			size:           1,
 			expectedResult: "",
-			expectedError: "EOF",
+			expectedError:  "EOF",
 		},
 		{
-			name: "empty offset out of bounds",
-			parts: nil,
-			offset: 1,
-			size: 1,
+			name:           "empty offset out of bounds",
+			parts:          nil,
+			offset:         1,
+			size:           1,
 			expectedResult: "",
-			expectedError: "EOF",
+			expectedError:  "EOF",
 		},
 		{
-			name: "single part full",
-			parts: []string{"abcdefgh"},
-			offset: 0,
-			size: 8,
+			name:           "single part full",
+			parts:          []string{"abcdefgh"},
+			offset:         0,
+			size:           8,
 			expectedResult: "abcdefgh",
 		},
 		{
-			name: "single part start",
-			parts: []string{"abcdefgh"},
-			offset: 0,
-			size: 3,
+			name:           "single part start",
+			parts:          []string{"abcdefgh"},
+			offset:         0,
+			size:           3,
 			expectedResult: "abc",
 		},
 		{
-			name: "single part middle",
-			parts: []string{"abcdefgh"},
-			offset: 3,
-			size: 3,
+			name:           "single part middle",
+			parts:          []string{"abcdefgh"},
+			offset:         3,
+			size:           3,
 			expectedResult: "def",
 		},
 		{
-			name: "single part end",
-			parts: []string{"abcdefgh"},
-			offset: 4,
-			size: 4,
+			name:           "single part end",
+			parts:          []string{"abcdefgh"},
+			offset:         4,
+			size:           4,
 			expectedResult: "efgh",
 		},
 		{
-			name: "single part size out of bounds",
-			parts: []string{"abcdefgh"},
-			offset: 4,
-			size: 10,
+			name:           "single part size out of bounds",
+			parts:          []string{"abcdefgh"},
+			offset:         4,
+			size:           10,
 			expectedResult: "efgh",
-			expectedError: "EOF",
+			expectedError:  "EOF",
 		},
 		{
-			name: "single part offset out of bounds",
-			parts: []string{"abcdefgh"},
-			offset: 4,
-			size: 10,
+			name:           "single part offset out of bounds",
+			parts:          []string{"abcdefgh"},
+			offset:         4,
+			size:           10,
 			expectedResult: "efgh",
-			expectedError: "EOF",
+			expectedError:  "EOF",
 		},
 		{
-			name: "single part empty",
-			parts: []string{"abcdefgh"},
-			offset: 0,
-			size: 0,
+			name:           "single part empty",
+			parts:          []string{"abcdefgh"},
+			offset:         0,
+			size:           0,
 			expectedResult: "",
 		},
 		{
-			name: "multiple parts full",
-			parts: []string{"abcdefgh", "ijklm", "nopqrs"},
-			offset: 0,
-			size: 19,
+			name:           "multiple parts full",
+			parts:          []string{"abcdefgh", "ijklm", "nopqrs"},
+			offset:         0,
+			size:           19,
 			expectedResult: "abcdefghijklmnopqrs",
 		},
 		{
-			name: "multiple parts beginning",
-			parts: []string{"abcdefgh", "ijklm", "nopqrs"},
-			offset: 0,
-			size: 4,
+			name:           "multiple parts beginning",
+			parts:          []string{"abcdefgh", "ijklm", "nopqrs"},
+			offset:         0,
+			size:           4,
 			expectedResult: "abcd",
 		},
 		{
-			name: "multiple parts beginning 2",
-			parts: []string{"abcdefgh", "ijklm", "nopqrs"},
-			offset: 0,
-			size: 10,
+			name:           "multiple parts beginning 2",
+			parts:          []string{"abcdefgh", "ijklm", "nopqrs"},
+			offset:         0,
+			size:           10,
 			expectedResult: "abcdefghij",
 		},
 		{
-			name: "multiple parts middle 1",
-			parts: []string{"abcdefgh", "ijklm", "nopqrs"},
-			offset: 9,
-			size: 3,
+			name:           "multiple parts middle 1",
+			parts:          []string{"abcdefgh", "ijklm", "nopqrs"},
+			offset:         9,
+			size:           3,
 			expectedResult: "jkl",
 		},
 		{
-			name: "multiple parts middle 2",
-			parts: []string{"abcdefgh", "ijklm", "nopqrs"},
-			offset: 6,
-			size: 4,
+			name:           "multiple parts middle 2",
+			parts:          []string{"abcdefgh", "ijklm", "nopqrs"},
+			offset:         6,
+			size:           4,
 			expectedResult: "ghij",
 		},
 		{
-			name: "multiple parts middle 3",
-			parts: []string{"abcdefgh", "ijklm", "nopqrs"},
-			offset: 6,
-			size: 10,
+			name:           "multiple parts middle 3",
+			parts:          []string{"abcdefgh", "ijklm", "nopqrs"},
+			offset:         6,
+			size:           10,
 			expectedResult: "ghijklmnop",
 		},
 		{
-			name: "multiple parts end",
-			parts: []string{"abcdefgh", "ijklm", "nopqrs"},
-			offset: 6,
-			size: 13,
+			name:           "multiple parts end",
+			parts:          []string{"abcdefgh", "ijklm", "nopqrs"},
+			offset:         6,
+			size:           13,
 			expectedResult: "ghijklmnopqrs",
 		},
 		{
-			name: "multiple parts end 2",
-			parts: []string{"abcdefgh", "ijklm", "nopqrs"},
-			offset: 15,
-			size: 4,
+			name:           "multiple parts end 2",
+			parts:          []string{"abcdefgh", "ijklm", "nopqrs"},
+			offset:         15,
+			size:           4,
 			expectedResult: "pqrs",
 		},
 		{
-			name: "multiple parts size out of bounds",
-			parts: []string{"abcdefgh", "ijklm", "nopqrs"},
-			offset: 6,
-			size: 30,
+			name:           "multiple parts size out of bounds",
+			parts:          []string{"abcdefgh", "ijklm", "nopqrs"},
+			offset:         6,
+			size:           30,
 			expectedResult: "ghijklmnopqrs",
-			expectedError: "EOF",
+			expectedError:  "EOF",
 		},
 	}
 	for _, test := range tests {
@@ -218,7 +219,7 @@ func TestMultiReaderAt_ReadAtContext(t *testing.T) {
 
 type readWithError struct {
 	data []byte
-	err error
+	err  error
 }
 
 func (r readWithError) ReadAtContext(ctx context.Context, p []byte, off int64) (n int, err error) {

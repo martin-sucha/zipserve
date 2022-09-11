@@ -26,7 +26,7 @@ type offsetAndData struct {
 // multiReaderAt is a ReaderAt that joins multiple ReaderAt sequentially together.
 type multiReaderAt struct {
 	parts []offsetAndData
-	size int64
+	size  int64
 }
 
 // add a part to the multiContextReader.
@@ -40,7 +40,7 @@ func (mcr *multiReaderAt) add(data ReaderAt, size int64) {
 	}
 	mcr.parts = append(mcr.parts, offsetAndData{
 		offset: mcr.size,
-		data: data,
+		data:   data,
 	})
 	mcr.size += size
 }
@@ -78,7 +78,7 @@ func (mcr *multiReaderAt) ReadAtContext(ctx context.Context, p []byte, off int64
 		if sizeToRead > partRemainingBytes {
 			sizeToRead = partRemainingBytes
 		}
-		n2, err2 := mcr.parts[partIndex].data.ReadAtContext(ctx, p[0:sizeToRead], off - mcr.parts[partIndex].offset)
+		n2, err2 := mcr.parts[partIndex].data.ReadAtContext(ctx, p[0:sizeToRead], off-mcr.parts[partIndex].offset)
 		n += n2
 		if err2 != nil {
 			return n, err2
@@ -115,7 +115,7 @@ func (a ignoreContext) ReadAtContext(_ context.Context, p []byte, off int64) (n 
 // request.
 type withContext struct {
 	ctx context.Context
-	r ReaderAt
+	r   ReaderAt
 }
 
 func (w withContext) ReadAt(p []byte, off int64) (n int, err error) {
